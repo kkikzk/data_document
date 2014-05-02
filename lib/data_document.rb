@@ -110,7 +110,7 @@ module DataDocument
       types = collect_attributes(enum.attributes, 'attr_type')
       raise EnumDefinitionError, 'multiple enum type definition => enum ' + enum.name if 1 < types.length
       io.puts make_namespace(namespaces)
-      names = collect_attribute(enum.attributes, 'attr_name')
+      names = collect_attributes(enum.attributes, 'attr_name')
       if names.length.nonzero?
         io.puts '    /// <summary>'
         io.puts '    /// ' + names.join(' ')
