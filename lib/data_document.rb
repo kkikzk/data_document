@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
+require 'ERB'
 require 'src_lexer'
-require 'data_document/version'
 
 class Array
   def accept(io, visitor)
-    each { |e| visitor.call(io, e) }
+    each {|e| visitor.call(io, e)}
   end
 end
 
@@ -79,13 +79,34 @@ module DataDocument
       @definitions = definitions
     end
     def build(io)
-      make_namespace(io)
+      class << io
+        attr_accessor :indent_level
+        alias :old_puts :puts
+        def puts(str)
+          if str.empty?
+            puts_core str
+          else
+            str.each_line{|line| puts_core line.chomp}
+          end
+        end
+        def puts_core(str)
+          stripped = str.strip
+          if 1 <= stripped.length && stripped[0] == '}' && 1 <= @indent_level
+            old_puts ('    ' * (@indent_level - 1)) + str.strip
+          else
+            old_puts ('    ' * @indent_level) + str.strip
+          end
+          @indent_level = @indent_level + stripped.count('{') - stripped.count('}')
+        end
+      end
+      io.indent_level = 0
+      DocToCSharp.make_using(io)
       make_enums(io)
       make_structs(io)
-  #    make_validator(io)
-  #    make_indexer(io)
+      DocToCSharp.make_validator(io)
+      DocToCSharp.make_indexer(io)
     end
-    def make_namespace(io)
+    def self.make_using(io)
       io.puts 'using System;'
       io.puts 'using System.Collections.Generic;'
       io.puts 'using System.Diagnostics;'
@@ -99,49 +120,57 @@ module DataDocument
       @definitions.structs.accept(io, DocToCSharp.method(:visit_struct_definition))
     end
     def self.collect_attributes(attributes, type)
-      attributes.nil? ? [] : attributes.select{|a| a.type == type}.map{|a| a.value}
+      attributes.nil? ? [] : attributes.select{|a| a.type == type}.map{|a| a.value[1..-2]}
     end
     def self.make_namespace(namespaces)
       namespaces.push 'DataDocument' if namespaces.length.zero?
-      namespaces.map{|namespace| 'namespace ' + namespace + ' {'}.join(' ')
+      return namespaces
     end
     def self.visit_enum_definition(io, enum)
       namespaces = collect_attributes(enum.attributes, 'attr_namespace')
       types = collect_attributes(enum.attributes, 'attr_type')
       raise EnumDefinitionError, 'multiple enum type definition => enum ' + enum.name if 1 < types.length
-      io.puts make_namespace(namespaces)
-      names = collect_attributes(enum.attributes, 'attr_name')
-      if names.length.nonzero?
-        io.puts '    /// <summary>'
-        io.puts '    /// ' + names.join(' ')
-        io.puts '    /// </summary>'
-      end
-      io.puts '    public enum ' + enum.name + (types.length.zero? ? '' : ' : ' + to_csharp_type(types[0])) + ' {'
+      make_namespace(namespaces).each{|namespace| io.puts 'namespace ' + namespace; io.puts '{'}
+      make_summary(io, enum)
+      io.puts 'public enum ' + enum.name + (types.length.zero? ? '' : ' : ' + to_csharp_type(types[0]))
+      io.puts '{'
       enum.elements.accept(io, method(:visit_enum_member))
-      io.puts '    }'
-      io.puts '}' * namespaces.length
+      io.puts '}'
+      namespaces.each{|namespace| io.puts '}'}
       io.puts ''
     end
+    def self.make_summary(io, target)
+      names = collect_attributes(target.attributes, 'attr_name')
+      if names.length.nonzero?
+        erb = ERB.new(<<-'EOS')
+          /// <summary>
+          /// <%= names.join(' ') %>
+          /// </summary>
+        EOS
+        io.puts erb.result(binding)
+=begin
+        io.puts '/// <summary>'
+        io.puts '/// ' + names.join(' ')
+        io.puts '/// </summary>'
+=end
+      end
+    end
     def self.visit_enum_member(io, element)
-      io.puts '        ' + element.name + ' = ' + element.value + ','
+      make_summary(io, element)
+      io.puts '' + element.name + ' = ' + element.value + ','
     end
     def self.visit_struct_definition(io, struct)
       namespaces = collect_attributes(struct.attributes, 'attr_namespace')
-      io.puts make_namespace(namespaces)
-      names = collect_attribute(struct.attributes, 'attr_name')
-      if names.length.nonzero?
-        io.puts '    /// <summary>'
-        io.puts '    /// ' + names.join(' ')
-        io.puts '    /// </summary>'
-      end
-      io.puts '    public class ' + struct.name + (struct.base_type.nil? ? '' : ' : ' + struct.base_type) + ' {'
+      make_namespace(namespaces).each{|namespace| io.puts 'namespace ' + namespace; io.puts '{'}
+      make_summary(io, struct)
+      io.puts 'public class ' + struct.name + (struct.base_type.nil? ? '' : ' : ' + struct.base_type)
+      io.puts '{'
       struct.elements.accept(io, method(:visit_struct_member))
+      io.puts ''
       struct.elements.accept(io, method(:visit_struct_accessor))
-      io.puts '        public ' + struct.name + '() {'
-      struct.elements.accept(io, method(:visit_struct_constructor))
-      io.puts '        }'
-      io.puts '    }'
-      io.puts '}' * namespaces.length
+      visit_struct_constructor(io, struct)
+      io.puts '}'
+      namespaces.each{|namespace| io.puts '}'}
       io.puts ''
     end
     def self.make_construction_statement(element)
@@ -183,9 +212,11 @@ module DataDocument
         to_variable_name(element.name) + make_construction_statement(element) + ';'
     end
     def self.visit_struct_accessor(io, element)
-      io.puts 'public ' + to_concrete_data_type(element) + ' ' + element.name + ' {'
+      make_summary(io, element)
+      io.puts 'public ' + to_concrete_data_type(element) + ' ' + element.name
+      io.puts '{'
       io.puts '    [DebuggerStepThrough]'
-      if element.conditions.nil?
+      if element.conditions.nil? || (numeric?(element.count) && 2 <= element.count.to_i)
         io.puts '    set { ' + to_variable_name(element.name) + ' = value; }'
       else
         validation_type = to_csharp_type(element.data_type == 'string' ? 'int32' : element.data_type)
@@ -204,40 +235,45 @@ module DataDocument
       io.puts '    [DebuggerStepThrough]'
       io.puts '    get { return ' + to_variable_name(element.name) + '; }'
       io.puts '}'
+      io.puts ''
     end
     def self.visit_struct_constructor(io, struct)
+      io.puts '/// <summary>'
+      io.puts '/// Constructor'
+      io.puts '/// </summary>'
       io.puts 'public ' + struct.name + '()'
       io.puts '{'
       struct.elements.accept(io, method(:visit_struct_construct_element))
       io.puts '}'
     end
     def self.visit_struct_construct_element(io, element)
-      return if element.default_value.nil? && primitive?(element.data_type)
-      io.puts '{'
       if numeric?(element.count) && 2 <= element.count.to_i
+        io.puts '// ' + element.name
         if primitive?(element.data_type) && !element.default_value.nil?
           if !element.conditions.nil?
             validation_type = to_csharp_type(element.data_type == 'string' ? 'int32' : element.data_type)
-            io.puts '    Tuple<' + validation_type + ', ' + validation_type + '>[] conditions = new Tuple<' + validation_type + ', ' + validation_type + '>[] {'
+            io.puts '    Tuple<' + validation_type + ', ' + validation_type + '>[] conditions' + element.name + ' = new Tuple<' + validation_type + ', ' + validation_type + '>[] {'
             element.conditions.each do |c|
               range = to_range(c, element.data_type)
               io.puts '        new Tuple<' + validation_type + ', ' + validation_type + '>(' + range[0] + ', ' + range[1] + '),'
             end
             io.puts '    };'
-            io.puts '    ' + to_variable_name(element.name) + '.Validator = new DataDocument.RangeValidator<' + validation_type + '>(conditions);'
+            io.puts '    ' + to_variable_name(element.name) + '.Validator = new DataDocument.RangeValidator<' + validation_type + '>(conditions' + element.name + ')'';'
           end
-          io.puts '    for (Int32 i = 0; i < ' + element.count + '; ++i) {'
+          io.puts '    for (Int32 i = 0; i < ' + element.count + '; ++i)'
+          io.puts '    {'
           io.puts '        ' + to_variable_name(element.name) + '[i] = ' + element.default_value + ';'
           io.puts '    }'
         elsif !primitive?(element.data_type)
-          io.puts '    for (Int32 i = 0; i < ' + element.count + '; ++i) {'
+          io.puts '    for (Int32 i = 0; i < ' + element.count + '; ++i)'
+          io.puts '    {'
           io.puts '        ' + to_variable_name(element.name) + '[i] = new ' + element.data_type + '();'
           io.puts '    }'
         end
-      else
+      elsif !element.default_value.nil?
+        io.puts '// ' + element.name
         io.puts '    ' + to_variable_name(element.name) + ' = ' + element.default_value + ';'
       end
-      io.puts '}'
     end
     def self.primitive?(data_type)
       to_csharp_type(data_type) != data_type
@@ -351,7 +387,7 @@ module DataDocument
   		io.puts '        {'
   		io.puts '            set'
       io.puts '            {'
-      io.puts '                if (value == null) throw new ArgumentException();'
+      io.puts '                if (value == null) throw new ArgumentNullException();'
       io.puts '                _array[i] = value;'
       io.puts '            }'
   		io.puts '            get { return _array[i]; }'

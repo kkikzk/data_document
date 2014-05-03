@@ -57,13 +57,13 @@ type_decl: 'int64' { result = val[0].str }
   | IDENT { result = val[0].str }
 
 unnamed_struct: 'struct' '{' struct_element_decl '}'
-  { result = StructData.new('unnamed_struct', [], nil, val[2].str) }
+  { result = StructData.new('unnamed_struct', [], nil, val[2]) }
 
 condition_decl: { result = nil }
-  | '(' condition_decls ')' { result = val[1].str }
+  | '(' condition_decls ')' { result = val[1] }
 
-condition_decls: each_condition_decl { result = [val[0].str] }
-  | condition_decls ',' each_condition_decl { val[0].push(val[2].str); result = val[0] }
+condition_decls: each_condition_decl { result = [val[0]] }
+  | condition_decls ',' each_condition_decl { val[0].push(val[2]); result = val[0] }
 
 each_condition_decl: NUMBER '..' NUMBER { result = val[0].str + '..' + val[2].str }
   | NUMBER '..' { result = val[0].str + '..Max' }
@@ -102,8 +102,7 @@ def parse(str)
     'decimal',
     'float',
     'double',
-    'char',
-    'double'
+    'char'
   ]
   symbols = [
     ',',

@@ -30,8 +30,7 @@ def parse(str)
     'decimal',
     'float',
     'double',
-    'char',
-    'double'
+    'char'
   ]
   symbols = [
     ',',
@@ -542,7 +541,7 @@ module_eval(<<'.,.,', 'doc_parser.y', 56)
 
 module_eval(<<'.,.,', 'doc_parser.y', 59)
   def _reduce_36(val, _values, result)
-     result = StructData.new('unnamed_struct', [], nil, val[2].str) 
+     result = StructData.new('unnamed_struct', [], nil, val[2]) 
     result
   end
 .,.,
@@ -556,21 +555,21 @@ module_eval(<<'.,.,', 'doc_parser.y', 61)
 
 module_eval(<<'.,.,', 'doc_parser.y', 62)
   def _reduce_38(val, _values, result)
-     result = val[1].str 
+     result = val[1] 
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'doc_parser.y', 64)
   def _reduce_39(val, _values, result)
-     result = [val[0].str] 
+     result = [val[0]] 
     result
   end
 .,.,
 
 module_eval(<<'.,.,', 'doc_parser.y', 65)
   def _reduce_40(val, _values, result)
-     val[0].push(val[2].str); result = val[0] 
+     val[0].push(val[2]); result = val[0] 
     result
   end
 .,.,
