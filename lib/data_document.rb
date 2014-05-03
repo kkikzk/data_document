@@ -104,6 +104,7 @@ module DataDocument
       make_enums(io)
       make_structs(io)
       DocToCSharp.make_validator(io)
+      io.puts ''
       DocToCSharp.make_indexer(io)
     end
     def self.make_using(io)
@@ -327,31 +328,32 @@ module DataDocument
       return range
     end
     def self.make_validator(io)
-      io.puts 'namespace DataDocument'
-      io.puts '{'
-      io.puts '    internal class RangeValidator<T>'
-      io.puts '        where T : IComparable'
-      io.puts '    {'
-  		io.puts '        private IEnumerable<Tuple<T, T>> _ranges;'
-  		io.puts '        public RangeValidator(IEnumerable<Tuple<T, T>> ranges)'
-  		io.puts '        {'
-  		io.puts '            _ranges = ranges;'
-  		io.puts '        }'
-      io.puts '        public void Validate(Func<T> valueGetter)'
-  		io.puts '        {'
-      io.puts '            T value = valueGetter();'
-  		io.puts '            foreach (var range in _ranges)'
-  		io.puts '            {'
-  		io.puts '                if ((range.Item1.CompareTo(value) <= 0) && (value.CompareTo(range.Item2) <= 0))'
-  		io.puts '                {'
-  		io.puts '                    return;'
-  		io.puts '                }'
-  		io.puts '            }'
-  		io.puts '            throw new ArgumentException();'
-  		io.puts '        }'
-      io.puts '    }'
-      io.puts '}'
-      io.puts ''
+      io.puts <<-'EOS'
+        namespace DataDocument
+        {
+            internal class RangeValidator<T>
+                where T : IComparable
+            {
+  		          private IEnumerable<Tuple<T, T>> _ranges;
+  		          public RangeValidator(IEnumerable<Tuple<T, T>> ranges)
+  		          {
+  		              _ranges = ranges;
+  		          }
+                public void Validate(Func<T> valueGetter)
+  		          {
+                    T value = valueGetter();
+  		              foreach (var range in _ranges)
+  		              {
+  		                  if ((range.Item1.CompareTo(value) <= 0) && (value.CompareTo(range.Item2) <= 0))
+  		                  {
+  		                      return;
+  		                  }
+  		              }
+  		              throw new ArgumentException();
+  		          }
+            }
+        }
+      EOS
     end
     def self.make_indexer(io)
       io.puts 'namespace DataDocument'
