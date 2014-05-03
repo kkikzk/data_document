@@ -356,51 +356,52 @@ module DataDocument
       EOS
     end
     def self.make_indexer(io)
-      io.puts 'namespace DataDocument'
-      io.puts '{'
-  		io.puts '    public class Indexer<T>'
-      io.puts '        where T : IComparable'
-  		io.puts '    {'
-  		io.puts '        private T[] _array;'
-      io.puts '        public DataDocument.RangeValidator<T> Validator { set; get; }'
-  		io.puts '        public T this[int i]'
-  		io.puts '        {'
-  		io.puts '            set'
-      io.puts '            {'
-      io.puts '                if (Validator != null) Validator.Validate(() => value)'
-      io.puts '                _array[i] = value;'
-      io.puts '            }'
-  		io.puts '            get { return _array[i]; }'
-  		io.puts '        }'
-  		io.puts '        public Indexer(int count)'
-  		io.puts '        {'
-  		io.puts '            _array = new T[count];'
-  		io.puts '        }'
-  		io.puts '    }'
-      io.puts '}'
-      io.puts ''
-      io.puts 'namespace DataDocument'
-      io.puts '{'
-  		io.puts '    public class ClassIndexer<T>'
-      io.puts '        where T : class'
-  		io.puts '    {'
-  		io.puts '        private T[] _array;'
-  		io.puts '        public T this[int i]'
-  		io.puts '        {'
-  		io.puts '            set'
-      io.puts '            {'
-      io.puts '                if (value == null) throw new ArgumentNullException();'
-      io.puts '                _array[i] = value;'
-      io.puts '            }'
-  		io.puts '            get { return _array[i]; }'
-  		io.puts '        }'
-  		io.puts '        public ClassIndexer(int count)'
-  		io.puts '        {'
-  		io.puts '            _array = new T[count];'
-  		io.puts '        }'
-  		io.puts '    }'
-      io.puts '}'
-      io.puts ''
+      io.puts <<-'EOS'
+        namespace DataDocument
+        {
+            public class Indexer<T>
+                where T : IComparable
+            {
+                private T[] _array;
+                public DataDocument.RangeValidator<T> Validator { set; get; }
+                public T this[int i]
+                {
+                    set
+                    {
+                        if (Validator != null) Validator.Validate(() => value)
+                        _array[i] = value;
+                    }
+                    get { return _array[i]; }
+                }
+                public Indexer(int count)
+                {
+                    _array = new T[count];
+                }
+            }
+        }
+
+        namespace DataDocument
+        {
+            public class ClassIndexer<T>
+                where T : class
+            {
+                private T[] _array;
+                public T this[int i]
+                {
+                    set
+                    {
+                        if (value == null) throw new ArgumentNullException();
+                        _array[i] = value;
+                    }
+                    get { return _array[i]; }
+                }
+                public ClassIndexer(int count)
+                {
+                     _array = new T[count];
+                }
+            }
+        }
+      EOS
     end
     def self.to_variable_name(name)
       '_' + name
