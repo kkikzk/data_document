@@ -143,17 +143,12 @@ module DataDocument
     def self.make_summary(io, target)
       names = collect_attributes(target.attributes, 'attr_name')
       if names.length.nonzero?
-        erb = ERB.new(<<-'EOS')
+        summary = <<-'EOS'
           /// <summary>
-          /// <%= names.join(' ') %>
+          /// %s
           /// </summary>
         EOS
-        io.puts erb.result(binding)
-=begin
-        io.puts '/// <summary>'
-        io.puts '/// ' + names.join(' ')
-        io.puts '/// </summary>'
-=end
+        io.puts summary % names.join(' ')
       end
     end
     def self.visit_enum_member(io, element)
