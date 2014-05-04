@@ -1,7 +1,9 @@
 # -*- encoding: utf-8 -*-
-require 'ERB'
 require 'src_lexer'
 
+#
+# Open class of Array class
+#
 class Array
   def accept(io, visitor)
     each {|e| visitor.call(io, e)}
@@ -9,22 +11,74 @@ class Array
 end
 
 module DataDocument
+  #
+  # Parse result of data documents
+  #
   class ParseResult
-    attr_reader :enums, :structs
+    #
+    # An array of EnumData class
+    #
+    attr_reader :enums
+
+    #
+    # An array of StructData class
+    #
+    attr_reader :structs
+
+    #
+    # initialize
+    #
     def initialize
       @enums = []
       @structs = []
     end
+
+    #
+    # Add a enum definition
+    #
+    # _enum_ :: a definition of enum
+    #
     def add_enum(enum)
       @enums.push(enum)
     end
+
+    #
+    # Add a struct definition
+    #
+    # _struct_ :: a definition of struct
+    #
     def add_struct(struct)
       @structs.push(struct)
     end
   end
 
+  #
+  # Definition of a struct
+  #
   class StructData
-    attr_reader :name, :attributes, :base_type, :elements
+    #
+    # A struct name
+    #
+    attr_reader :name
+
+    #
+    # An array of attribute
+    # Supports the attributes below
+    #* attr_namespace
+    #* attr_name
+    #
+    attr_reader :attributes
+
+    #
+    # A base type of a struct
+    #
+    attr_reader :base_type
+
+    #
+    # An array of StructElement class
+    #
+    attr_reader :elements
+
     def initialize(name, attributes, base_type, elements)
       @name = name
       @attributes = attributes
@@ -101,6 +155,7 @@ module DataDocument
       end
       io.indent_level = 0
       DocToCSharp.make_using(io)
+      io.puts ''
       make_enums(io)
       make_structs(io)
       DocToCSharp.make_validator(io)
@@ -108,11 +163,12 @@ module DataDocument
       DocToCSharp.make_indexer(io)
     end
     def self.make_using(io)
-      io.puts 'using System;'
-      io.puts 'using System.Collections.Generic;'
-      io.puts 'using System.Diagnostics;'
-      io.puts 'using System.IO;'
-      io.puts ''
+      io.puts <<-'EOS'
+        using System;
+        using System.Collections.Generic;
+        using System.Diagnostics;
+        using System.IO;
+      EOS
     end
     def make_enums(io)
       @definitions.enums.accept(io, DocToCSharp.method(:visit_enum_definition))

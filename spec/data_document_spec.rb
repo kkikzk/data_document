@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 require_relative './spec_helper'
 
 module SrcLexer
@@ -64,8 +65,8 @@ describe DataDocument::DocToCSharp, 'when enum defined with attributes' do
     elements = []
     elements.push DataDocument::EnumElement.new('First', nil, '1')
     attributes = []
-    attributes.push DataDocument::Attribute.new('attr_namespace', 'Hoge')
-    attributes.push DataDocument::Attribute.new('attr_namespace', 'Huga')
+    attributes.push DataDocument::Attribute.new('attr_namespace', '"Hoge"')
+    attributes.push DataDocument::Attribute.new('attr_namespace', '"Huga"')
     definition = []
     definition.push DataDocument::EnumData.new('Enum', attributes, elements)
     # act
@@ -89,7 +90,7 @@ describe DataDocument::DocToCSharp, 'when enum defined with attributes' do
     elements = []
     elements.push DataDocument::EnumElement.new('First', nil, '1')
     attributes = []
-    attributes.push DataDocument::Attribute.new('attr_type', 'int16')
+    attributes.push DataDocument::Attribute.new('attr_type', '"int16"')
     definition = []
     definition.push DataDocument::EnumData.new('Enum', attributes, elements)
     # act
@@ -278,14 +279,12 @@ describe DataDocument::DocToCSharp, 'when struct defined' do
     expect(
       SrcLexer::CSharpLexer.new.analyze(io.read)
     ).to eq(<<-'EOS'
-      {
-        Tuple<Int32, Int32>[] conditions = new Tuple<Int32, Int32>[] {
-          new Tuple<Int32, Int32>(0, 5),
-        };
-        _Data.Validator = new DataDocument.RangeValidator<Int32>(conditions);
-        for (Int32 i = 0; i < 2; ++i) {
-          _Data[i] = 1;
-        }
+      Tuple<Int32, Int32>[] conditionsData = new Tuple<Int32, Int32>[] {
+        new Tuple<Int32, Int32>(0, 5),
+      };
+      _Data.Validator = new DataDocument.RangeValidator<Int32>(conditionsData);
+      for (Int32 i = 0; i < 2; ++i) {
+        _Data[i] = 1;
       }
       EOS
     )
@@ -304,18 +303,12 @@ describe DataDocument::DocToCSharp, 'when struct defined' do
     expect(
       SrcLexer::CSharpLexer.new.analyze(io.read)
     ).to eq(<<-'EOS'
-      {
-        _Data = 1;
+      _Data = 1;
+      for (Int32 i = 0; i < 2; ++i) {
+        _Data2[i] = 1;
       }
-      {
-        for (Int32 i = 0; i < 2; ++i) {
-          _Data2[i] = 1;
-        }
-      }
-      {
-        for (Int32 i = 0; i < 2; ++i) {
-          _Data3[i] = new HogeClass();
-        }
+      for (Int32 i = 0; i < 2; ++i) {
+        _Data3[i] = new HogeClass();
       }
       EOS
     )
